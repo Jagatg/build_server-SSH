@@ -6,6 +6,18 @@ on:
 jobs:
   ssh:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+
     steps:
       - name: Start SSH Session
         uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: false
+          detached: true
+
+      - name: Keep Runner Alive
+        run: |
+          echo "Runner will stay alive for SSH access"
+          while true; do
+            sleep 60
+          done
