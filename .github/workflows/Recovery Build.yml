@@ -1,4 +1,4 @@
-name: SSH Debug Runner
+name: SSH Debug Runner (Upterm)
 
 on:
   workflow_dispatch:
@@ -9,15 +9,12 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Start SSH Session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: false
-          detached: true
+      - name: Start SSH session
+        uses: owenthereal/action-upterm@v1
 
       - name: Keep Runner Alive
         run: |
-          echo "Runner will stay alive for SSH access"
+          echo "SSH session ready"
           while true; do
             sleep 60
           done
