@@ -11,10 +11,9 @@ jobs:
     steps:
       - name: Start SSH session
         uses: owenthereal/action-upterm@v1
-
-      - name: Keep Runner Alive
-        run: |
-          echo "SSH session ready"
-          while true; do
-            sleep 60
-          done
+        with:
+          command: |
+            echo "SSH session ready"
+            while true; do
+              sleep 60
+            done
