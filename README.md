@@ -1,1 +1,1 @@
-GitHub Runner as SSH
+Use this for compile recovery and kernel
