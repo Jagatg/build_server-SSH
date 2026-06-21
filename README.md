@@ -1,5 +1,3 @@
-Copyright (C) 2026 The LineageOS Project
-
 Device Tree for Xiaomi Redmi A1 / Redmi A1+ / POCO C50
 ======================================================
 
