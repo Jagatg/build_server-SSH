@@ -1,4 +1,4 @@
-Device Tree for Xiaomi Redmi A1 / Redmi A1+ / POCO C50
+Device Configuration for Xiaomi Redmi A1 / Redmi A1+ / POCO C50
 ======================================================
 
 Xiaomi Redmi A1, Redmi A1+ and POCO C50 (codenamed _"ice"_) are entry-level smartphones from Xiaomi.
