@@ -1,0 +1,188 @@
+name: Android ROM Builder
+
+on:
+  workflow_dispatch:
+
+env:
+  # ==========================
+  # Manifest
+  # ==========================
+  MANIFEST_URL: ""
+  MANIFEST_BRANCH: ""
+
+  # ==========================
+  # Device Tree
+  # ==========================
+  DEVICE_REPO: ""
+  DEVICE_PATH: ""
+
+  # ==========================
+  # Common Device Tree
+  # ==========================
+  DEVICE_COMMON_REPO: ""
+  DEVICE_COMMON_PATH: ""
+
+  # ==========================
+  # Vendor Tree
+  # ==========================
+  VENDOR_REPO: ""
+  VENDOR_PATH: ""
+
+  # ==========================
+  # Common Vendor Tree
+  # ==========================
+  VENDOR_COMMON_REPO: ""
+  VENDOR_COMMON_PATH: ""
+
+  # ==========================
+  # Kernel
+  # ==========================
+  KERNEL_REPO: ""
+  KERNEL_PATH: ""
+
+  # ==========================
+  # Kernel Prebuilts
+  # ==========================
+  PREBUILTS_KERNEL_REPO: ""
+  PREBUILTS_KERNEL_PATH: ""
+
+  # ==========================
+  # Dolby
+  # ==========================
+  DOLBY_DEVICE_REPO: ""
+  DOLBY_DEVICE_PATH: ""
+
+  DOLBY_VENDOR_REPO: ""
+  DOLBY_VENDOR_PATH: ""
+
+  # ==========================
+  # MIUI Camera
+  # ==========================
+  MIUICAMERA_DEVICE_REPO: ""
+  MIUICAMERA_DEVICE_PATH: ""
+
+  MIUICAMERA_VENDOR_REPO: ""
+  MIUICAMERA_VENDOR_PATH: ""
+
+  # ==========================
+  # Build
+  # ==========================
+  LUNCH_TARGET: ""
+  BUILD_COMMAND: ""
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Workflow
+        uses: actions/checkout@v4
+
+      - name: Install repo tool
+        run: |
+          mkdir -p ~/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod +x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Prepare Workspace
+        run: |
+          mkdir -p /tmp/src/android
+
+      - name: Initialize Source
+        run: |
+          cd /tmp/src/android
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --git-lfs
+
+      - name: Sync Source
+        run: |
+          cd /tmp/src/android
+          repo sync -c \
+            --force-sync \
+            --no-tags \
+            --no-clone-bundle \
+            -j$(nproc)
+
+      - name: Clone Extra Repositories
+        shell: bash
+        run: |
+          cd /tmp/src/android
+
+          clone_repo() {
+            REPO="$1"
+            PATHNAME="$2"
+
+            if [ -z "$REPO" ] || [ -z "$PATHNAME" ]; then
+              return
+            fi
+
+            echo "========================================"
+            echo "Cloning:"
+            echo "Repo : $REPO"
+            echo "Path : $PATHNAME"
+            echo "========================================"
+
+            rm -rf "$PATHNAME"
+
+            mkdir -p "$(dirname "$PATHNAME")"
+
+            git clone --depth=1 "$REPO" "$PATHNAME"
+          }
+
+          clone_repo "$DEVICE_REPO" "$DEVICE_PATH"
+          clone_repo "$DEVICE_COMMON_REPO" "$DEVICE_COMMON_PATH"
+
+          clone_repo "$VENDOR_REPO" "$VENDOR_PATH"
+          clone_repo "$VENDOR_COMMON_REPO" "$VENDOR_COMMON_PATH"
+
+          clone_repo "$KERNEL_REPO" "$KERNEL_PATH"
+          clone_repo "$PREBUILTS_KERNEL_REPO" "$PREBUILTS_KERNEL_PATH"
+
+          clone_repo "$DOLBY_DEVICE_REPO" "$DOLBY_DEVICE_PATH"
+          clone_repo "$DOLBY_VENDOR_REPO" "$DOLBY_VENDOR_PATH"
+
+          clone_repo "$MIUICAMERA_DEVICE_REPO" "$MIUICAMERA_DEVICE_PATH"
+          clone_repo "$MIUICAMERA_VENDOR_REPO" "$MIUICAMERA_VENDOR_PATH"
+
+      - name: Build ROM
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          cd /tmp/src/android
+
+          source build/envsetup.sh
+
+          lunch "$LUNCH_TARGET"
+
+          echo "========================================"
+          echo "Starting Build..."
+          echo "========================================"
+
+          stdbuf -oL -eL bash -c "$BUILD_COMMAND" 2>&1 | tee build.log
+
+          echo "========================================"
+          echo "Build Finished"
+          echo "========================================"
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/src/android/build.log
+          if-no-files-found: ignore
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ROM
+          path: |
+            /tmp/src/android/out/target/product/**/*.zip
+            /tmp/src/android/out/target/product/**/*.img
+            /tmp/src/android/out/target/product/**/*.bin
+            /tmp/src/android/out/target/product/**/*.tar
+            /tmp/src/android/out/target/product/**/*.json
+            /tmp/src/android/out/target/product/**/*.sha256sum
+          if-no-files-found: ignore
