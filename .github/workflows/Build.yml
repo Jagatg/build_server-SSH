@@ -2,73 +2,126 @@ name: Android ROM Builder
 
 on:
   workflow_dispatch:
+    inputs:
+      MANIFEST_URL:
+        description: Manifest URL
+        required: true
+        type: string
 
-env:
-  # ==========================
-  # Manifest
-  # ==========================
-  MANIFEST_URL: ""
-  MANIFEST_BRANCH: ""
+      MANIFEST_BRANCH:
+        description: Manifest Branch
+        required: true
+        type: string
 
-  # ==========================
-  # Device Tree
-  # ==========================
-  DEVICE_REPO: ""
-  DEVICE_PATH: ""
+      DEVICE_REPO:
+        description: Device Repository
+        required: false
+        type: string
 
-  # ==========================
-  # Common Device Tree
-  # ==========================
-  DEVICE_COMMON_REPO: ""
-  DEVICE_COMMON_PATH: ""
+      DEVICE_PATH:
+        description: Device Path
+        required: false
+        type: string
 
-  # ==========================
-  # Vendor Tree
-  # ==========================
-  VENDOR_REPO: ""
-  VENDOR_PATH: ""
+      DEVICE_COMMON_REPO:
+        description: Common Device Repository
+        required: false
+        type: string
 
-  # ==========================
-  # Common Vendor Tree
-  # ==========================
-  VENDOR_COMMON_REPO: ""
-  VENDOR_COMMON_PATH: ""
+      DEVICE_COMMON_PATH:
+        description: Common Device Path
+        required: false
+        type: string
 
-  # ==========================
-  # Kernel
-  # ==========================
-  KERNEL_REPO: ""
-  KERNEL_PATH: ""
+      VENDOR_REPO:
+        description: Vendor Repository
+        required: false
+        type: string
 
-  # ==========================
-  # Kernel Prebuilts
-  # ==========================
-  PREBUILTS_KERNEL_REPO: ""
-  PREBUILTS_KERNEL_PATH: ""
+      VENDOR_PATH:
+        description: Vendor Path
+        required: false
+        type: string
 
-  # ==========================
-  # Dolby
-  # ==========================
-  DOLBY_DEVICE_REPO: ""
-  DOLBY_DEVICE_PATH: ""
+      VENDOR_COMMON_REPO:
+        description: Common Vendor Repository
+        required: false
+        type: string
 
-  DOLBY_VENDOR_REPO: ""
-  DOLBY_VENDOR_PATH: ""
+      VENDOR_COMMON_PATH:
+        description: Common Vendor Path
+        required: false
+        type: string
 
-  # ==========================
-  # MIUI Camera
-  # ==========================
-  MIUICAMERA_DEVICE_REPO: ""
-  MIUICAMERA_DEVICE_PATH: ""
+      KERNEL_REPO:
+        description: Kernel Repository
+        required: false
+        type: string
 
-  MIUICAMERA_VENDOR_REPO: ""
-  MIUICAMERA_VENDOR_PATH: ""
+      KERNEL_PATH:
+        description: Kernel Path
+        required: false
+        type: string
 
-  # ==========================
-  # Build
-  # ==========================
-  LUNCH_TARGET: ""
-  BUILD_COMMAND: ""
+      PREBUILTS_KERNEL_REPO:
+        description: Kernel Prebuilts Repository
+        required: false
+        type: string
+
+      PREBUILTS_KERNEL_PATH:
+        description: Kernel Prebuilts Path
+        required: false
+        type: string
+
+      DOLBY_DEVICE_REPO:
+        description: Dolby Device Repository
+        required: false
+        type: string
+
+      DOLBY_DEVICE_PATH:
+        description: Dolby Device Path
+        required: false
+        type: string
+
+      DOLBY_VENDOR_REPO:
+        description: Dolby Vendor Repository
+        required: false
+        type: string
+
+      DOLBY_VENDOR_PATH:
+        description: Dolby Vendor Path
+        required: false
+        type: string
+
+      MIUICAMERA_DEVICE_REPO:
+        description: MIUI Camera Device Repository
+        required: false
+        type: string
+
+      MIUICAMERA_DEVICE_PATH:
+        description: MIUI Camera Device Path
+        required: false
+        type: string
+
+      MIUICAMERA_VENDOR_REPO:
+        description: MIUI Camera Vendor Repository
+        required: false
+        type: string
+
+      MIUICAMERA_VENDOR_PATH:
+        description: MIUI Camera Vendor Path
+        required: false
+        type: string
+
+      LUNCH_TARGET:
+        description: Lunch Target
+        required: true
+        type: string
+
+      BUILD_COMMAND:
+        description: Build Command
+        required: true
+        type: string
 
 jobs:
   build:
@@ -78,7 +131,7 @@ jobs:
       - name: Checkout Workflow
         uses: actions/checkout@v4
 
-      - name: Install repo tool
+      - name: Install repo
         run: |
           mkdir -p ~/bin
           curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
@@ -92,57 +145,60 @@ jobs:
       - name: Initialize Source
         run: |
           cd /tmp/src/android
-          repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --git-lfs
+
+          repo init \
+            -u "${{ inputs.MANIFEST_URL }}" \
+            -b "${{ inputs.MANIFEST_BRANCH }}" \
+            --git-lfs
 
       - name: Sync Source
         run: |
           cd /tmp/src/android
-          repo sync -c \
+
+          repo sync \
+            -c \
             --force-sync \
             --no-tags \
             --no-clone-bundle \
             -j$(nproc)
 
-      - name: Clone Extra Repositories
+      - name: Clone Repositories
         shell: bash
         run: |
           cd /tmp/src/android
 
           clone_repo() {
-            REPO="$1"
-            PATHNAME="$2"
+              REPO="$1"
+              DEST="$2"
 
-            if [ -z "$REPO" ] || [ -z "$PATHNAME" ]; then
-              return
-            fi
+              if [ -z "$REPO" ] || [ -z "$DEST" ]; then
+                  return
+              fi
 
-            echo "========================================"
-            echo "Cloning:"
-            echo "Repo : $REPO"
-            echo "Path : $PATHNAME"
-            echo "========================================"
+              echo "================================="
+              echo "Repository : $REPO"
+              echo "Destination: $DEST"
+              echo "================================="
 
-            rm -rf "$PATHNAME"
+              rm -rf "$DEST"
+              mkdir -p "$(dirname "$DEST")"
 
-            mkdir -p "$(dirname "$PATHNAME")"
-
-            git clone --depth=1 "$REPO" "$PATHNAME"
+              git clone --depth=1 "$REPO" "$DEST"
           }
+                    clone_repo "${{ inputs.DEVICE_REPO }}" "${{ inputs.DEVICE_PATH }}"
+          clone_repo "${{ inputs.DEVICE_COMMON_REPO }}" "${{ inputs.DEVICE_COMMON_PATH }}"
 
-          clone_repo "$DEVICE_REPO" "$DEVICE_PATH"
-          clone_repo "$DEVICE_COMMON_REPO" "$DEVICE_COMMON_PATH"
+          clone_repo "${{ inputs.VENDOR_REPO }}" "${{ inputs.VENDOR_PATH }}"
+          clone_repo "${{ inputs.VENDOR_COMMON_REPO }}" "${{ inputs.VENDOR_COMMON_PATH }}"
 
-          clone_repo "$VENDOR_REPO" "$VENDOR_PATH"
-          clone_repo "$VENDOR_COMMON_REPO" "$VENDOR_COMMON_PATH"
+          clone_repo "${{ inputs.KERNEL_REPO }}" "${{ inputs.KERNEL_PATH }}"
+          clone_repo "${{ inputs.PREBUILTS_KERNEL_REPO }}" "${{ inputs.PREBUILTS_KERNEL_PATH }}"
 
-          clone_repo "$KERNEL_REPO" "$KERNEL_PATH"
-          clone_repo "$PREBUILTS_KERNEL_REPO" "$PREBUILTS_KERNEL_PATH"
+          clone_repo "${{ inputs.DOLBY_DEVICE_REPO }}" "${{ inputs.DOLBY_DEVICE_PATH }}"
+          clone_repo "${{ inputs.DOLBY_VENDOR_REPO }}" "${{ inputs.DOLBY_VENDOR_PATH }}"
 
-          clone_repo "$DOLBY_DEVICE_REPO" "$DOLBY_DEVICE_PATH"
-          clone_repo "$DOLBY_VENDOR_REPO" "$DOLBY_VENDOR_PATH"
-
-          clone_repo "$MIUICAMERA_DEVICE_REPO" "$MIUICAMERA_DEVICE_PATH"
-          clone_repo "$MIUICAMERA_VENDOR_REPO" "$MIUICAMERA_VENDOR_PATH"
+          clone_repo "${{ inputs.MIUICAMERA_DEVICE_REPO }}" "${{ inputs.MIUICAMERA_DEVICE_PATH }}"
+          clone_repo "${{ inputs.MIUICAMERA_VENDOR_REPO }}" "${{ inputs.MIUICAMERA_VENDOR_PATH }}"
 
       - name: Build ROM
         shell: bash
@@ -153,13 +209,13 @@ jobs:
 
           source build/envsetup.sh
 
-          lunch "$LUNCH_TARGET"
+          lunch "${{ inputs.LUNCH_TARGET }}"
 
           echo "========================================"
-          echo "Starting Build..."
+          echo "Build Started"
           echo "========================================"
 
-          stdbuf -oL -eL bash -c "$BUILD_COMMAND" 2>&1 | tee build.log
+          stdbuf -oL -eL bash -c "${{ inputs.BUILD_COMMAND }}" 2>&1 | tee build.log
 
           echo "========================================"
           echo "Build Finished"
@@ -178,11 +234,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ROM
-          path: |
-            /tmp/src/android/out/target/product/**/*.zip
-            /tmp/src/android/out/target/product/**/*.img
-            /tmp/src/android/out/target/product/**/*.bin
-            /tmp/src/android/out/target/product/**/*.tar
-            /tmp/src/android/out/target/product/**/*.json
-            /tmp/src/android/out/target/product/**/*.sha256sum
+          path: /tmp/src/android/out/target/product/
           if-no-files-found: ignore
