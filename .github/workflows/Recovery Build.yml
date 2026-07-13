@@ -1,4 +1,4 @@
-name: SSH Debug Runner (Upterm)
+name: SSH Debug Runner (Upterm + Byobu)
 
 on:
   workflow_dispatch:
@@ -9,11 +9,18 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      - name: Install Byobu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y byobu
+
       - name: Start SSH session
         uses: owenthereal/action-upterm@v1
         with:
           command: |
-            echo "SSH session ready"
+            byobu new-session -d -s debug
+            echo "SSH session ready."
+            echo "Run: byobu attach -t debug"
             while true; do
               sleep 60
             done
