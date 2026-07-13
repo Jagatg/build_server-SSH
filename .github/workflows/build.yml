@@ -1,0 +1,20 @@
+name: Build on Crave DevSpace
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify runner
+        run: |
+          echo "Runner is working!"
+          whoami
+          hostname
+          pwd
+          df -h
