@@ -1,317 +1,240 @@
-name: Android ROM Builder
+name: Build Android ROM
 
 on:
   workflow_dispatch:
     inputs:
-
       MANIFEST_URL:
-        description: "Manifest Repository URL"
+        description: 'Manifest repository URL'
         required: true
         type: string
-
       MANIFEST_BRANCH:
-        description: "Manifest Branch"
+        description: 'Manifest branch'
         required: true
         type: string
-
       LOCAL_MANIFEST_REPO:
-        description: "Local Manifest Repository (Optional)"
+        description: 'Local manifest repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       LOCAL_MANIFEST_BRANCH:
-        description: "Local Manifest Branch"
+        description: 'Local manifest branch (optional)'
         required: false
-        default: "main"
         type: string
-
-      REMOVE_FOLDERS:
-        description: "Folders to remove before sync (space separated)"
-        required: false
-        default: ""
-        type: string
-
       DEVICE_REPO:
-        description: "Device Repository"
+        description: 'Device tree repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       DEVICE_PATH:
-        description: "Device Path"
+        description: 'Device tree destination path (optional)'
         required: false
-        default: ""
         type: string
-
       DEVICE_COMMON_REPO:
-        description: "Common Device Repository"
+        description: 'Device common tree repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       DEVICE_COMMON_PATH:
-        description: "Common Device Path"
+        description: 'Device common tree destination path (optional)'
         required: false
-        default: ""
         type: string
-
       VENDOR_REPO:
-        description: "Vendor Repository"
+        description: 'Vendor tree repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       VENDOR_PATH:
-        description: "Vendor Path"
+        description: 'Vendor tree destination path (optional)'
         required: false
-        default: ""
         type: string
-
       VENDOR_COMMON_REPO:
-        description: "Common Vendor Repository"
+        description: 'Vendor common tree repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       VENDOR_COMMON_PATH:
-        description: "Common Vendor Path"
+        description: 'Vendor common tree destination path (optional)'
         required: false
-        default: ""
         type: string
-              KERNEL_REPO:
-        description: "Kernel Repository"
+      KERNEL_REPO:
+        description: 'Kernel repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       KERNEL_PATH:
-        description: "Kernel Path"
+        description: 'Kernel destination path (optional)'
         required: false
-        default: ""
         type: string
-
       PREBUILTS_KERNEL_REPO:
-        description: "Kernel Prebuilts Repository"
+        description: 'Prebuilt kernel repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       PREBUILTS_KERNEL_PATH:
-        description: "Kernel Prebuilts Path"
+        description: 'Prebuilt kernel destination path (optional)'
         required: false
-        default: ""
         type: string
-
       DOLBY_DEVICE_REPO:
-        description: "Dolby Device Repository"
+        description: 'Dolby device repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       DOLBY_DEVICE_PATH:
-        description: "Dolby Device Path"
+        description: 'Dolby device destination path (optional)'
         required: false
-        default: ""
         type: string
-
       DOLBY_VENDOR_REPO:
-        description: "Dolby Vendor Repository"
+        description: 'Dolby vendor repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       DOLBY_VENDOR_PATH:
-        description: "Dolby Vendor Path"
+        description: 'Dolby vendor destination path (optional)'
         required: false
-        default: ""
         type: string
-
       MIUICAMERA_DEVICE_REPO:
-        description: "MIUI Camera Device Repository"
+        description: 'MIUI camera device repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       MIUICAMERA_DEVICE_PATH:
-        description: "MIUI Camera Device Path"
+        description: 'MIUI camera device destination path (optional)'
         required: false
-        default: ""
         type: string
-
       MIUICAMERA_VENDOR_REPO:
-        description: "MIUI Camera Vendor Repository"
+        description: 'MIUI camera vendor repository URL (optional)'
         required: false
-        default: ""
         type: string
-
       MIUICAMERA_VENDOR_PATH:
-        description: "MIUI Camera Vendor Path"
+        description: 'MIUI camera vendor destination path (optional)'
         required: false
-        default: ""
         type: string
-
+      REMOVE_FOLDERS:
+        description: 'Space-separated list of folders to remove (relative to /tmp/src/android)'
+        required: false
+        type: string
       LUNCH_COMMAND:
-        description: "Lunch/Breakfast Command"
+        description: 'Lunch command to execute'
         required: true
-        default: "lunch lineage_device-userdebug"
+        type: string
+      BUILD_COMMAND:
+        description: 'Build command to execute'
+        required: true
         type: string
 
-      BUILD_COMMAND:
-        description: "Build Command"
-        required: true
-        default: "m bacon"
-        type: string
-        jobs:
+jobs:
   build:
-    name: Android Build
     runs-on: self-hosted
     timeout-minutes: 1440
-
     steps:
-      - name: Checkout Workflow
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Git
+      - name: Install repo tool if missing
         run: |
-          git config --global user.name github-actions
-          git config --global user.email github-actions@github.com
+          if ! command -v repo &> /dev/null; then
+            mkdir -p ~/.bin
+            curl -o ~/.bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+            chmod a+x ~/.bin/repo
+            echo "$HOME/.bin" >> "$GITHUB_PATH"
+          else
+            echo "repo tool already installed"
+          fi
 
-      - name: Install repo
+      - name: Configure git user/email
         run: |
-          mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
-          chmod +x ~/bin/repo
-          echo "$HOME/bin" >> "$GITHUB_PATH"
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
 
-      - name: Prepare Workspace
+      - name: Create workspace
         run: |
           mkdir -p /tmp/src/android
-          cd /tmp/src/android
 
-      - name: Initialize Source
-        shell: bash
+      - name: repo init
+        working-directory: /tmp/src/android
         run: |
-          cd /tmp/src/android
+          repo init -u "${{ inputs.MANIFEST_URL }}" -b "${{ inputs.MANIFEST_BRANCH }}" --git-lfs
 
-          repo init \
-            -u "${{ inputs.MANIFEST_URL }}" \
-            -b "${{ inputs.MANIFEST_BRANCH }}" \
-            --git-lfs
-
-      - name: Sync Source
-        shell: bash
+      - name: repo sync
+        working-directory: /tmp/src/android
         run: |
-          cd /tmp/src/android
+          repo sync --force-sync --no-clone-bundle --no-tags -c -j$(nproc)
 
-          repo sync \
-            --force-sync \
-            --no-clone-bundle \
-            --no-tags \
-            -c \
-            -j"$(nproc)"
-
-      - name: Clone Local Manifest
-        if: ${{ inputs.LOCAL_MANIFEST_REPO != '' }}
-        shell: bash
+      - name: Clone optional local manifest
+        working-directory: /tmp/src/android
         run: |
-          cd /tmp/src/android
+          LOCAL_MANIFEST_REPO="${{ inputs.LOCAL_MANIFEST_REPO }}"
+          LOCAL_MANIFEST_BRANCH="${{ inputs.LOCAL_MANIFEST_BRANCH }}"
 
-          rm -rf .repo/local_manifests
+          if [ -n "$LOCAL_MANIFEST_REPO" ]; then
+            mkdir -p .repo/local_manifests
+            if [ -n "$LOCAL_MANIFEST_BRANCH" ]; then
+              git clone --depth=1 -b "$LOCAL_MANIFEST_BRANCH" "$LOCAL_MANIFEST_REPO" .repo/local_manifests
+            else
+              git clone --depth=1 "$LOCAL_MANIFEST_REPO" .repo/local_manifests
+            fi
+            repo sync --force-sync --no-clone-bundle --no-tags -c -j$(nproc)
+          else
+            echo "No local manifest provided, skipping"
+          fi
 
-          git clone \
-            --depth=1 \
-            -b "${{ inputs.LOCAL_MANIFEST_BRANCH }}" \
-            "${{ inputs.LOCAL_MANIFEST_REPO }}" \
-            .repo/local_manifests
-
-      - name: Remove Requested Folders
-        if: ${{ inputs.REMOVE_FOLDERS != '' }}
-        shell: bash
+      - name: Remove folders
+        working-directory: /tmp/src/android
         run: |
-          cd /tmp/src/android
+          REMOVE_FOLDERS="${{ inputs.REMOVE_FOLDERS }}"
 
-          for dir in ${{ inputs.REMOVE_FOLDERS }}; do
-            rm -rf "$dir"
-          done
+          if [ -n "$REMOVE_FOLDERS" ]; then
+            for folder in $REMOVE_FOLDERS; do
+              echo "Removing $folder"
+              rm -rf "/tmp/src/android/$folder"
+            done
+          else
+            echo "No folders to remove"
+          fi
 
-      - name: Clone Device Trees
-        shell: bash
+      - name: Clone optional repositories
+        working-directory: /tmp/src/android
         run: |
-          cd /tmp/src/android
-
           clone_repo() {
-            local repo="$1"
-            local path="$2"
+            repo="$1"
+            path="$2"
 
             if [ -z "$repo" ] || [ -z "$path" ]; then
-              return
+              echo "Skipping clone, repo or path not provided"
+              return 0
             fi
 
-            rm -rf "$path"
-            mkdir -p "$(dirname "$path")"
+            full_path="/tmp/src/android/$path"
 
-            git clone --depth=1 "$repo" "$path"
-          }
-                - name: Clone Repositories
-        shell: bash
-        run: |
-          cd /tmp/src/android
-
-          clone_repo() {
-            local repo="$1"
-            local path="$2"
-
-            if [ -z "$repo" ] || [ -z "$path" ]; then
-              return
+            if [ -d "$full_path" ]; then
+              echo "Removing existing $full_path"
+              rm -rf "$full_path"
             fi
 
-            rm -rf "$path"
-            mkdir -p "$(dirname "$path")"
+            mkdir -p "$(dirname "$full_path")"
 
-            git clone --depth=1 "$repo" "$path"
+            echo "Cloning $repo into $full_path"
+            git clone --depth=1 "$repo" "$full_path"
           }
 
           clone_repo "${{ inputs.DEVICE_REPO }}" "${{ inputs.DEVICE_PATH }}"
           clone_repo "${{ inputs.DEVICE_COMMON_REPO }}" "${{ inputs.DEVICE_COMMON_PATH }}"
-
           clone_repo "${{ inputs.VENDOR_REPO }}" "${{ inputs.VENDOR_PATH }}"
           clone_repo "${{ inputs.VENDOR_COMMON_REPO }}" "${{ inputs.VENDOR_COMMON_PATH }}"
-
           clone_repo "${{ inputs.KERNEL_REPO }}" "${{ inputs.KERNEL_PATH }}"
           clone_repo "${{ inputs.PREBUILTS_KERNEL_REPO }}" "${{ inputs.PREBUILTS_KERNEL_PATH }}"
-
           clone_repo "${{ inputs.DOLBY_DEVICE_REPO }}" "${{ inputs.DOLBY_DEVICE_PATH }}"
           clone_repo "${{ inputs.DOLBY_VENDOR_REPO }}" "${{ inputs.DOLBY_VENDOR_PATH }}"
-
           clone_repo "${{ inputs.MIUICAMERA_DEVICE_REPO }}" "${{ inputs.MIUICAMERA_DEVICE_PATH }}"
           clone_repo "${{ inputs.MIUICAMERA_VENDOR_REPO }}" "${{ inputs.MIUICAMERA_VENDOR_PATH }}"
 
       - name: Build ROM
-        shell: bash
+        working-directory: /tmp/src/android
         run: |
-          set -eo pipefail
-
-          cd /tmp/src/android
-
           source build/envsetup.sh
-
-          bash -c "${{ inputs.LUNCH_COMMAND }}"
-
+          ${{ inputs.LUNCH_COMMAND }}
           stdbuf -oL -eL bash -c "${{ inputs.BUILD_COMMAND }}" 2>&1 | tee build.log
 
-      - name: Upload Build Log
+      - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: /tmp/src/android/build.log
-          if-no-files-found: ignore
 
-      - name: Upload ROM
+      - name: Upload build output
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ROM
+          name: build-output
           path: /tmp/src/android/out/target/product/
-          if-no-files-found: ignore
