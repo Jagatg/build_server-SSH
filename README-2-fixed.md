@@ -125,7 +125,7 @@ sudo python3 mtk.py da seccfg unlock
 
 Wait until the process finishes.
 
-Then reboot the device:
+Then release the device in bootrom:
 
 ``` bash
 sudo python3 mtk.py reset
